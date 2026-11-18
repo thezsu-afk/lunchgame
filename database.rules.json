@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "menus": {
+      ".read": true,
+      ".write": true
+    },
+    "rounds": {
+      ".read": true,
+      "$day": {
+        ".write": true,
+        "picks": {
+          "$person": {
+            ".validate": "newData.hasChildren(['cat','item','at']) && newData.child('item').isString() && newData.child('item').val().length <= 30"
+          }
+        }
+      }
+    },
+    "history": {
+      ".read": true,
+      "$id": {
+        ".write": "!data.exists() || !newData.exists()",
+        ".validate": "!newData.exists() || newData.hasChildren(['date','name','item','at'])"
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

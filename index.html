@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>점심메뉴 룰렛</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#fff7ec;--ink:#2b2118;--muted:#8a7a6a;--accent:#e8553d;--card:#fff;--line:#eadfce;--soft:#f6ece0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Gowun Dodum',system-ui,sans-serif;min-height:100vh}
+  button{font:inherit}
+  .hidden{display:none!important}
+
+  /* ── 입장 화면 ── */
+  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:20;padding:20px}
+  .gate-box{text-align:center}
+  .gate-box h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(34px,7vw,56px);margin:0}
+  .gate-box h1 span{color:var(--accent)}
+  .gate-box p{color:var(--muted);margin:10px 0 28px}
+  .who{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+  .who button{width:130px;height:130px;border-radius:28px;border:0;color:#fff;font-family:'Black Han Sans',sans-serif;font-size:30px;cursor:pointer;box-shadow:0 8px 20px rgba(80,40,10,.18);transition:transform .15s}
+  .who button:hover{transform:translateY(-4px) rotate(-2deg)}
+
+  /* ── 본 화면 ── */
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 20px 48px;display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
+  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  header h1{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:clamp(26px,4.5vw,38px);margin:0}
+  header h1 span{color:var(--accent)}
+  .me{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+  .me b{color:#fff;padding:4px 12px;border-radius:999px;font-weight:400}
+  .linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:13px;cursor:pointer;padding:0}
+  .linkbtn:hover{color:var(--accent)}
+  .banner{grid-column:1/-1;background:#fff3cd;border:1px solid #f0d98a;border-radius:12px;padding:10px 14px;font-size:14px}
+
+  .modes{display:flex;gap:6px;background:var(--soft);padding:4px;border-radius:999px;margin:0 auto 6px;width:max-content}
+  .modes button{border:0;background:none;padding:8px 18px;border-radius:999px;cursor:pointer;color:var(--muted)}
+  .modes button.on{background:var(--ink);color:#fff}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .steps{display:flex;gap:8px;align-items:center;font-size:14px}
+  .step{padding:6px 12px;border-radius:999px;background:var(--soft);color:var(--muted)}
+  .step.on{background:var(--ink);color:#fff}
+  .step.done{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .wheel-box{position:relative;width:min(88vw,540px);aspect-ratio:1}
+  canvas{width:100%;height:100%;display:block;filter:drop-shadow(0 10px 24px rgba(80,40,10,.18))}
+  .pointer{position:absolute;top:-6px;left:50%;transform:translateX(-50%);border-left:18px solid transparent;border-right:18px solid transparent;border-top:34px solid var(--ink);z-index:2}
+  .hub{position:absolute;inset:0;margin:auto;width:23%;height:23%;border-radius:50%;background:var(--ink);color:#fff;border:6px solid #fff;font-family:'Black Han Sans',sans-serif;font-size:clamp(15px,3vw,22px);line-height:1.15;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s}
+  .hub:hover:not(:disabled){transform:scale(1.05)}
+  .hub:disabled{cursor:default;opacity:.75}
+  .result{min-height:100px;text-align:center}
+  .result .label{color:var(--muted);font-size:15px}
+  .result .big{font-family:'Black Han Sans',sans-serif;font-size:clamp(30px,5vw,44px);color:var(--accent);animation:pop .45s ease}
+  .tag{display:inline-block;font-size:13px;padding:3px 10px;border-radius:999px;color:#fff}
+  @keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .btn{padding:10px 16px;border:0;border-radius:10px;background:var(--ink);color:#fff;cursor:pointer}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .note{font-size:13px;color:var(--muted);text-align:center;min-height:18px}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:16px}
+  .panel h2{font-size:17px;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center}
+  .panel h2 small{font-size:12px;color:var(--muted);font-weight:400}
+  .pick{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .pick:last-child{border-bottom:0}
+  .pick .av{width:38px;height:38px;border-radius:12px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .pick .body{flex:1;min-width:0}
+  .pick .nm{font-size:13px;color:var(--muted)}
+  .pick .mn{font-size:17px}
+  .pick .mn.empty{color:#c4b6a6;font-size:14px}
+  .pick.win{background:linear-gradient(90deg,#fff1dc,transparent);border-radius:10px}
+  .crown{font-size:18px}
+  .final-box{text-align:center;padding:6px 0 2px}
+  .final-box .big{font-family:'Black Han Sans',sans-serif;font-size:26px;color:var(--accent)}
+  ol.hist{list-style:none;margin:0;padding:0}
+  ol.hist li{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  ol.hist li:last-child{border-bottom:0}
+  ol.hist .d{font-size:12px;color:var(--muted);width:44px}
+  ol.hist .m{flex:1}
+
+  details.editor summary{cursor:pointer;font-size:15px;list-style:none}
+  details.editor summary::-webkit-details-marker{display:none}
+  details.editor summary::after{content:" ▾";color:var(--muted)}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+  .tab{border:1px solid var(--line);background:#fffdf9;border-radius:999px;padding:5px 11px;font-size:13px;cursor:pointer}
+  .tab.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+  form{display:flex;gap:8px;margin-bottom:10px}
+  input[type=text]{flex:1;min-width:0;padding:8px 11px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fffdf9}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow:auto}
+  .chip{display:inline-flex;align-items:center;gap:2px;padding:4px 4px 4px 9px;border-radius:8px;background:var(--soft);font-size:13px}
+  .chip button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 4px}
+  .chip button:hover{color:var(--accent)}
+  .row{display:flex;justify-content:space-between;margin-top:10px}
+  @media (max-width:880px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- 입장: 본인 선택 -->
+<div id="gate">
+  <div class="gate-box">
+    <h1>오늘 점심 <span>뭐 먹지?</span></h1>
+    <p>누구세요?</p>
+    <div class="who" id="whoBtns"></div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="app">
+  <header>
+    <h1>오늘 점심 <span>뭐 먹지?</span></h1>
+    <div class="me"><b id="meTag"></b>로 참여 중 <button class="linkbtn" id="switchMe">바꾸기</button></div>
+  </header>
+  <div class="banner hidden" id="banner"></div>
+
+  <section class="stage">
+    <div class="modes">
+      <button id="mMine" class="on">내 룰렛</button>
+      <button id="mFinal">최종 룰렛</button>
+    </div>
+    <div class="steps" id="steps">
+      <span class="step" id="s1">1단계 카테고리</span>›
+      <span class="step" id="s2">2단계 세부 메뉴</span>
+    </div>
+    <div class="wheel-box">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="1080" height="1080"></canvas>
+      <button class="hub" id="hub"></button>
+    </div>
+    <div class="result" id="result"></div>
+    <div class="actions" id="actions"></div>
+    <div class="note" id="note"></div>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h2>오늘의 픽 <small id="today"></small></h2>
+      <div id="picks"></div>
+      <div class="final-box hidden" id="finalBox"></div>
+      <div class="row"><span></span><button class="linkbtn" id="newRound">새 라운드 시작</button></div>
+    </div>
+    <div class="panel">
+      <h2>지난 최종 메뉴</h2>
+      <ol class="hist" id="hist"></ol>
+    </div>
+    <div class="panel">
+      <details class="editor">
+        <summary>메뉴 편집 <small id="count" style="color:var(--muted);font-size:12px"></small></summary>
+        <div class="tabs" id="tabs"></div>
+        <form id="addCat"><input type="text" id="catInput" placeholder="카테고리 추가" maxlength="8"><button class="btn" type="submit">추가</button></form>
+        <form id="addItem"><input type="text" id="itemInput" placeholder="세부 메뉴 추가" maxlength="12"><button class="btn" type="submit">추가</button></form>
+        <div class="chips" id="chips"></div>
+        <div class="row"><button class="linkbtn" id="delCat">이 카테고리 삭제</button><button class="linkbtn" id="restore">기본 메뉴로 되돌리기</button></div>
+      </details>
+    </div>
+  </aside>
+</div>
+
+<script src="firebase-config.js"></script>
+<script>
+/* ════════════════════════════════════════════════
+   기본 메뉴 (Firebase가 비어 있을 때 처음 한 번 채워짐)
+   ════════════════════════════════════════════════ */
+const DEFAULT_MENUS = [
+  {name:"한식",items:["김치찌개","된장찌개","순두부찌개","부대찌개","제육볶음","불고기","비빔밥","돌솥비빔밥","국밥","순대국","설렁탕","갈비탕","육개장","감자탕","닭갈비","닭볶음탕","삼계탕","보쌈","족발","냉면","칼국수","수제비","김치볶음밥","생선구이"]},
+  {name:"분식",items:["떡볶이","라볶이","김밥","참치김밥","치즈김밥","순대","튀김","어묵","라면","치즈라면","쫄면","우동","오므라이스","분식 돈까스","만두","비빔국수","잔치국수","주먹밥","컵밥","토스트","핫도그","떡꼬치","유부초밥","김말이"]},
+  {name:"중식",items:["짜장면","짬뽕","간짜장","삼선짬뽕","볶음밥","짬뽕밥","잡채밥","마파두부밥","탕수육","깐풍기","유린기","양장피","마라탕","마라샹궈","꿔바로우","깐쇼새우","울면","기스면","중화비빔밥","고추잡채","팔보채","군만두","우육면","딤섬"]},
+  {name:"일식",items:["초밥","회덮밥","연어덮밥","규동","가츠동","오야코동","텐동","사케동","돈코츠라멘","쇼유라멘","미소라멘","츠케멘","냄비우동","냉모밀","소바","돈카츠","카레라이스","오코노미야키","타코야키","야키소바","장어덮밥","치킨난반","가라아게정식","카이센동"]},
+  {name:"양식",items:["까르보나라","알리오올리오","토마토파스타","로제파스타","크림리조또","피자","햄버거","수제버거","스테이크","함박스테이크","샌드위치","샐러드","브리또","타코","퀘사디아","그라탕","라자냐","뇨끼","치킨텐더","피쉬앤칩스","클럽샌드위치","포케","바베큐플래터","감바스"]},
+  {name:"아시안",items:["쌀국수","분짜","반미","팟타이","똠얌꿍","나시고렝","미고렝","카오팟","팟카파오","그린커리","푸팟퐁커리","인도커리","탄두리치킨","버터치킨","비리야니","분보후에","반쎄오","월남쌈","락사","하이난치킨라이스","사테","카오만가이","쏨땀","짜조"]}
+];
+const PEOPLE = (window.PEOPLE && window.PEOPLE.length) ? window.PEOPLE : [{name:"예솔",color:"#e8553d"},{name:"지수",color:"#3caea3"},{name:"수연",color:"#6c5b9e"}];
+const CAT_COLORS  = ["#e8553d","#f2a33a","#3caea3","#20639b","#6c5b9e","#d96c9c","#7fbf7f","#c0763b","#3d5a80","#e07a5f"];
+const ITEM_COLORS = ["#e8553d","#f2a33a","#f6d55c","#7fbf7f","#3caea3","#20639b","#6c5b9e","#d96c9c","#c0763b","#4f8a5b","#e07a5f","#3d5a80"];
+const LIGHT = ["#f6d55c","#f2a33a","#7fbf7f"];
+const $ = id => document.getElementById(id);
+const clone = o => JSON.parse(JSON.stringify(o));
+const todayKey = () => new Date(Date.now() + 9*3600e3).toISOString().slice(0,10); // KST 기준 날짜
+
+/* ════════════════════════════════════════════════
+   저장소: Firebase Realtime DB  또는  로컬(브라우저) 모드
+   on(path, cb) / set(path, v) / push(path, v) / remove(path)
+   ════════════════════════════════════════════════ */
+function makeLocalStore(){
+  const KEY = "lunch-roulette-db";
+  const read = () => { try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } };
+  const subs = [];
+  const get = (tree, path) => path.split("/").reduce((o,k)=> o==null ? null : (o[k] ?? null), tree);
+  function write(path, val){
+    const tree = read(); const keys = path.split("/"); let o = tree;
+    keys.slice(0,-1).forEach(k=>{ if(typeof o[k]!=="object" || o[k]===null) o[k]={}; o=o[k]; });
+    if(val===null) delete o[keys.at(-1)]; else o[keys.at(-1)] = clone(val);
+    try{ localStorage.setItem(KEY, JSON.stringify(tree)); }catch(e){}
+    notify(); try{ chan && chan.postMessage("x"); }catch(e){}
+  }
+  function notify(){ const t = read(); subs.forEach(s=>s.cb(clone(get(t, s.path)))); }
+  let chan = null; try{ chan = new BroadcastChannel(KEY); chan.onmessage = notify; }catch(e){}
+  window.addEventListener("storage", e=>{ if(e.key===KEY) notify(); });
+  return {
+    mode:"local",
+    on(path, cb){ const s={path,cb}; subs.push(s); setTimeout(()=>cb(clone(get(read(),path))),0); return ()=>subs.splice(subs.indexOf(s),1); },
+    set:(p,v)=>Promise.resolve(write(p,v)),
+    push(p,v){ return Promise.resolve(write(p+"/"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), v)); },
+    remove:(p)=>Promise.resolve(write(p,null))
+  };
+}
+function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=no; document.head.appendChild(s); }); }
+async function makeFirebaseStore(cfg){
+  const V = "10.12.2";
+  await loadScript(`https://www.gstatic.com/firebasejs/${V}/firebase-app-compat.js`);
+  await loadScript(`https://www.gstatic.com/firebasejs/${V}/firebase-database-compat.js`);
+  firebase.initializeApp(cfg);
+  const db = firebase.database();
+  return {
+    mode:"firebase",
+    on(path, cb){ const r=db.ref(path); const h=s=>cb(s.val()); r.on("value", h, err=>showBanner("Firebase 읽기 오류: "+err.message)); return ()=>r.off("value",h); },
+    set:(p,v)=>db.ref(p).set(v),
+    push:(p,v)=>db.ref(p).push(v),
+    remove:(p)=>db.ref(p).remove()
+  };
+}
+
+/* ════════════════════════════════════════════════
+   상태
+   ════════════════════════════════════════════════ */
+let store = null;
+let me = null;
+let menus = clone(DEFAULT_MENUS);
+let round = {picks:{}, final:null};
+let history = [];
+let mode = "mine";                    // "mine" | "final"
+let mine = {phase:"idle", cat:null};  // 내 룰렛 진행 상태 (로컬)
+let angle = 0, animating = false, wheel = {labels:[], colors:[]};
+let lastFinalId = undefined;          // undefined = 아직 첫 로드 전
+let selCat = 0, dayKey = todayKey(), unsubRound = null;
+
+const personColor = n => (PEOPLE.find(p=>p.name===n)||{}).color || "#888";
+const catColor = n => { const i = menus.findIndex(c=>c.name===n); return CAT_COLORS[(i<0?0:i)%CAT_COLORS.length]; };
+const itemsOf = n => (menus.find(c=>c.name===n)||{items:[]}).items;
+
+/* ════════════════════════════════════════════════
+   룰렛 그리기 / 애니메이션
+   ════════════════════════════════════════════════ */
+const cv = $("wheel"), ctx = cv.getContext("2d"), R = cv.width/2;
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.beginPath(); ctx.arc(R,R,R-4,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill();
+  const n = wheel.labels.length;
+  if(!n){
+    ctx.beginPath(); ctx.arc(R,R,R-24,0,Math.PI*2); ctx.fillStyle="#f1e6d6"; ctx.fill();
+    ctx.fillStyle="#8a7a6a"; ctx.font="38px 'Gowun Dodum'"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(mode==="final" ? "아직 아무도 메뉴를 안 뽑았어요" : "메뉴를 추가해 주세요", R, R-180); return;
+  }
+  const seg = Math.PI*2/n, fs = Math.max(26, Math.min(64, 560/n + 12));
+  for(let i=0;i<n;i++){
+    const a0 = angle + i*seg - Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(R,R); ctx.arc(R,R,R-24,a0,a0+seg); ctx.closePath();
+    ctx.fillStyle = wheel.colors[i]; ctx.fill(); ctx.strokeStyle="#fff"; ctx.lineWidth=n>16?3:5; ctx.stroke();
+    ctx.save(); ctx.translate(R,R); ctx.rotate(a0+seg/2); ctx.textAlign="right"; ctx.textBaseline="middle";
+    ctx.font = `${fs}px 'Black Han Sans'`; ctx.fillStyle = LIGHT.includes(wheel.colors[i]) ? "#2b2118" : "#fff";
+    let label = wheel.labels[i]; const maxW = R-24-170;
+    if(ctx.measureText(label).width > maxW){ while(ctx.measureText(label+"…").width>maxW && label.length>1) label=label.slice(0,-1); label+="…"; }
+    ctx.fillText(label, R-56, 0); ctx.restore();
+  }
+  for(let i=0;i<n;i++){ const a=angle+i*seg-Math.PI/2; ctx.beginPath(); ctx.arc(R+Math.cos(a)*(R-14),R+Math.sin(a)*(R-14),n>16?5:7,0,Math.PI*2); ctx.fillStyle="#2b2118"; ctx.fill(); }
+}
+function setWheel(labels, colors){ wheel = {labels, colors}; draw(); }
+const angleFor = (t,n,j) => { const seg=Math.PI*2/n; return -(t*seg+seg/2) + j*seg; };
+function animateTo(target, n, jitter, turns, dur){
+  return new Promise(res=>{
+    animating = true; render();
+    const want = angleFor(target,n,jitter), start = angle, TAU = Math.PI*2;
+    const delta = (((want-start)%TAU)+TAU)%TAU + TAU*turns, t0 = performance.now();
+    (function f(t){ const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,4); angle=start+delta*e; draw();
+      if(p<1) requestAnimationFrame(f); else { angle=want; animating=false; res(); } })(t0);
+  });
+}
+const randSpin = () => ({ jitter:(Math.random()-0.5)*0.7, turns:6+Math.floor(Math.random()*3), dur:4500+Math.floor(Math.random()*1200) });
+
+/* 현재 모드에 맞는 룰렛 판 */
+function refreshWheel(){
+  if(animating) return;
+  if(mode==="mine"){
+    if(mine.phase==="cat" || mine.phase==="item"){ const it = itemsOf(mine.cat); setWheel(it, it.map((_,i)=>ITEM_COLORS[i%ITEM_COLORS.length])); }
+    else { const cs = menus.filter(c=>c.items.length); setWheel(cs.map(c=>c.name), cs.map(c=>catColor(c.name))); }
+  } else {
+    const f = round.final;
+    const names = f ? f.wheel : pickedNames();
+    setWheel(names, names.map(personColor));
+    if(f) angle = angleFor(f.target, f.wheel.length, f.jitter); else angle = 0;
+    draw();
+  }
+}
+const pickedNames = () => PEOPLE.map(p=>p.name).filter(n=>round.picks && round.picks[n]);
+
+/* ════════════════════════════════════════════════
+   동작
+   ════════════════════════════════════════════════ */
+async function spinMine(){
+  if(animating) return;
+  if(mine.phase==="idle" || mine.phase==="item"){
+    const cs = menus.filter(c=>c.items.length>=1);
+    if(cs.length<2) return flash("카테고리가 2개 이상 있어야 해요");
+    mine = {phase:"idle", cat:null}; angle = 0; refreshWheel();
+    const t = Math.floor(Math.random()*cs.length), s = randSpin();
+    await animateTo(t, cs.length, s.jitter, s.turns, s.dur);
+    mine = {phase:"cat", cat: cs[t].name};
+    render();
+    setTimeout(()=>{ if(mine.phase==="cat" && !animating){ angle=0; refreshWheel(); render(); } }, 900);
+  } else if(mine.phase==="cat"){
+    const items = itemsOf(mine.cat);
+    if(items.length<1) return flash("이 카테고리에 메뉴가 없어요");
+    angle = 0; refreshWheel();
+    const t = Math.floor(Math.random()*items.length), s = randSpin();
+    await animateTo(t, items.length, s.jitter, s.turns, s.dur);
+    mine = {phase:"item", cat: mine.cat, item: items[t]};
+    render();
+    store.set(`rounds/${dayKey}/picks/${me}`, {cat: mine.cat, item: mine.item, at: Date.now()}).catch(onErr);
+  }
+}
+function spinFinal(){
+  if(animating) return;
+  const names = pickedNames();
+  if(names.length<1) return flash("먼저 각자 내 룰렛을 돌려 메뉴를 뽑아 주세요");
+  const t = Math.floor(Math.random()*names.length), s = randSpin(), who = names[t], p = round.picks[who];
+  const f = Object.assign({ spinId: Date.now().toString(36)+Math.random().toString(36).slice(2,6), wheel:names, target:t,
+                            name:who, cat:p.cat, item:p.item, by:me, at:Date.now() }, s);
+  store.set(`rounds/${dayKey}/final`, f)
+    .then(()=>store.push("history", {date:dayKey, name:who, cat:p.cat, item:p.item, at:f.at}))
+    .catch(onErr);
+}
+function newRound(){
+  if(animating) return;
+  store.remove(`rounds/${dayKey}`).catch(onErr);
+  mine = {phase:"idle", cat:null}; angle = 0; setMode("mine");
+}
+
+/* 최종 룰렛 결과를 모두가 같이 봄: 새 spinId가 오면 전원 화면에서 애니메이션 */
+async function onFinalChange(f){
+  const id = f ? f.spinId : null;
+  const first = lastFinalId === undefined;
+  if(id === lastFinalId) return;
+  lastFinalId = id;
+  if(!f || first){ if(mode==="final") refreshWheel(); render(); return; }
+  setMode("final", true);
+  angle = 0; setWheel(f.wheel, f.wheel.map(personColor));
+  await animateTo(f.target, f.wheel.length, f.jitter, f.turns, f.dur);
+  render();
+}
+
+function setMode(m, keepWheel){
+  if(animating && !keepWheel) return;
+  mode = m;
+  $("mMine").classList.toggle("on", m==="mine"); $("mFinal").classList.toggle("on", m==="final");
+  if(!keepWheel){ if(m==="mine") angle = mine.phase==="idle" ? 0 : angle; refreshWheel(); }
+  render();
+}
+function onErr(e){ flash("저장 실패: " + (e && e.message || e)); }
+function flash(msg){ $("note").textContent = msg; clearTimeout(flash.t); flash.t = setTimeout(()=>{$("note").textContent="";}, 3500); }
+function showBanner(html){ const b=$("banner"); b.innerHTML = html; b.classList.remove("hidden"); }
+
+/* ════════════════════════════════════════════════
+   화면 그리기
+   ════════════════════════════════════════════════ */
+function el(tag, cls, text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+function render(){
+  const hub = $("hub"), res = $("result"), act = $("actions");
+  res.innerHTML = ""; act.innerHTML = "";
+  $("steps").classList.toggle("hidden", mode!=="mine");
+  if(mode==="mine"){
+    $("s1").className = "step " + (mine.phase==="idle" ? "on" : "done");
+    $("s2").className = "step " + (mine.phase==="cat" ? "on" : mine.phase==="item" ? "done" : "");
+    hub.innerHTML = mine.phase==="cat" ? "2단계<br>GO!" : mine.phase==="item" ? "다시<br>GO!" : "1단계<br>GO!";
+    if(animating) res.appendChild(el("div","label", mine.phase==="cat" ? "메뉴 고르는 중…" : "카테고리 고르는 중…"));
+    else if(mine.phase==="idle"){
+      const p = round.picks && round.picks[me];
+      res.appendChild(el("div","label", p ? `오늘 내 픽: ${p.cat} · ${p.item} (다시 돌리면 바뀌어요)` : "가운데 버튼을 눌러 1단계 카테고리부터 정해요"));
+    } else if(mine.phase==="cat"){
+      res.appendChild(el("div","label","1단계 결과"));
+      const b = el("div","big", mine.cat); b.style.color = catColor(mine.cat); res.appendChild(b);
+      res.appendChild(el("div","label","이제 2단계에서 세부 메뉴를 돌려요"));
+    } else {
+      const t = el("span","tag", mine.cat); t.style.background = catColor(mine.cat); res.appendChild(t);
+      res.appendChild(el("div","big", mine.item));
+      res.appendChild(el("div","label","내 픽으로 저장했어요. 다 같이 뽑았으면 최종 룰렛으로!"));
+      const go = el("button","btn","최종 룰렛으로 가기"); go.onclick = ()=>setMode("final"); act.appendChild(go);
+    }
+    if(mine.phase==="cat" && !animating){ const again = el("button","btn ghost","카테고리 다시 돌리기"); again.onclick = ()=>{ mine={phase:"idle",cat:null}; angle=0; refreshWheel(); spinMine(); }; act.appendChild(again); }
+  } else {
+    const f = round.final, names = pickedNames();
+    hub.innerHTML = f ? "다시<br>GO!" : "최종<br>GO!";
+    if(animating) res.appendChild(el("div","label","누구 메뉴로 갈까…"));
+    else if(f){
+      res.appendChild(el("div","label", `${f.name}의 선택으로 결정!`));
+      const t = el("span","tag", f.cat); t.style.background = catColor(f.cat); res.appendChild(t);
+      res.appendChild(el("div","big", f.item));
+      res.appendChild(el("div","label", `${f.by}님이 돌렸어요`));
+    } else {
+      const waiting = PEOPLE.map(p=>p.name).filter(n=>!names.includes(n));
+      res.appendChild(el("div","label", names.length ? `${names.join(", ")}의 메뉴 중에서 골라요` : "아직 아무도 메뉴를 안 뽑았어요"));
+      if(waiting.length && names.length) res.appendChild(el("div","label", `아직 안 뽑은 사람: ${waiting.join(", ")}`));
+    }
+  }
+  if(animating) hub.innerHTML = "두구<br>두구";
+  hub.disabled = animating;
+  $("mMine").disabled = $("mFinal").disabled = animating;
+  renderPicks(); renderHistory();
+}
+function renderPicks(){
+  const box = $("picks"); box.innerHTML = "";
+  $("today").textContent = dayKey.slice(5).replace("-","/");
+  const f = round.final, showWin = f && !animating;
+  PEOPLE.forEach(p=>{
+    const pk = round.picks && round.picks[p.name];
+    const row = el("div","pick" + (showWin && f.name===p.name ? " win" : ""));
+    const av = el("div","av", p.name); av.style.background = p.color;
+    const body = el("div","body");
+    body.appendChild(el("div","nm", p.name + (p.name===me ? " (나)" : "")));
+    if(pk){ const mn = el("div","mn"); const t = el("span","tag",pk.cat); t.style.background=catColor(pk.cat); mn.append(t, document.createTextNode(" "+pk.item)); body.appendChild(mn); }
+    else body.appendChild(el("div","mn empty","아직 안 뽑았어요"));
+    row.append(av, body);
+    if(showWin && f.name===p.name) row.appendChild(el("span","crown","👑"));
+    box.appendChild(row);
+  });
+  const fb = $("finalBox");
+  if(showWin){ fb.innerHTML=""; fb.classList.remove("hidden"); fb.appendChild(el("div","label","최종 메뉴")); fb.appendChild(el("div","big", f.item)); }
+  else fb.classList.add("hidden");
+}
+function renderHistory(){
+  const ol = $("hist"); ol.innerHTML = "";
+  let h = history.slice();
+  if(animating && mode==="final") h = h.filter(x=>!(round.final && x.at===round.final.at));
+  if(!h.length){ ol.appendChild(el("li",null,"아직 기록이 없어요")); return; }
+  h.slice(0,10).forEach(x=>{
+    const li = el("li");
+    li.appendChild(el("span","d", (x.date||"").slice(5).replace("-","/")));
+    li.appendChild(el("span","m", x.item));
+    const t = el("span","tag", x.name); t.style.background = personColor(x.name); li.appendChild(t);
+    ol.appendChild(li);
+  });
+}
+function renderEditor(){
+  if(selCat>=menus.length) selCat=Math.max(0,menus.length-1);
+  const tabs=$("tabs"); tabs.innerHTML="";
+  menus.forEach((c,i)=>{ const b=el("button","tab"+(i===selCat?" sel":""), `${c.name} ${c.items.length}`); b.type="button"; b.onclick=()=>{selCat=i;renderEditor();}; tabs.appendChild(b); });
+  $("count").textContent = `· 카테고리 ${menus.length} / 메뉴 ${menus.reduce((a,c)=>a+c.items.length,0)}`;
+  const chips=$("chips"); chips.innerHTML=""; const cat=menus[selCat];
+  (cat?cat.items:[]).forEach((it,j)=>{ const s=el("span","chip",it); const x=el("button",null,"×"); x.type="button"; x.onclick=()=>{cat.items.splice(j,1); saveMenus();}; s.appendChild(x); chips.appendChild(s); });
+}
+function saveMenus(){ renderEditor(); refreshWheel(); store.set("menus", {categories: menus}).catch(onErr); }
+function twoClick(btn, fn){ const label = btn.textContent; btn.onclick=()=>{ if(btn.dataset.armed){ delete btn.dataset.armed; btn.textContent=label; fn(); return; } btn.dataset.armed="1"; btn.textContent="한 번 더 누르면 실행"; setTimeout(()=>{ delete btn.dataset.armed; btn.textContent=label; },3000); }; }
+
+/* ════════════════════════════════════════════════
+   이벤트
+   ════════════════════════════════════════════════ */
+$("hub").onclick = ()=> mode==="mine" ? spinMine() : spinFinal();
+$("mMine").onclick = ()=>setMode("mine");
+$("mFinal").onclick = ()=>setMode("final");
+$("switchMe").onclick = ()=>{ $("gate").classList.remove("hidden"); };
+twoClick($("newRound"), newRound);
+twoClick($("delCat"), ()=>{ menus.splice(selCat,1); saveMenus(); });
+twoClick($("restore"), ()=>{ menus=clone(DEFAULT_MENUS); selCat=0; saveMenus(); });
+$("addCat").onsubmit = e=>{ e.preventDefault(); const v=$("catInput").value.trim(); if(!v) return; if(menus.some(c=>c.name===v)) return flash("이미 있는 카테고리예요"); menus.push({name:v,items:[]}); selCat=menus.length-1; $("catInput").value=""; saveMenus(); };
+$("addItem").onsubmit = e=>{ e.preventDefault(); const v=$("itemInput").value.trim(), c=menus[selCat]; if(!v||!c) return; if(c.items.includes(v)) return flash("이미 있는 메뉴예요"); c.items.push(v); $("itemInput").value=""; saveMenus(); };
+
+/* 입장 화면 */
+PEOPLE.forEach(p=>{
+  const b = el("button", null, p.name); b.style.background = p.color;
+  b.onclick = ()=>{ me = p.name; try{ localStorage.setItem("lunch-me", me); }catch(e){}
+    $("meTag").textContent = me; $("meTag").style.background = p.color;
+    $("gate").classList.add("hidden"); $("app").classList.remove("hidden"); render(); draw(); };
+  $("whoBtns").appendChild(b);
+});
+
+/* ════════════════════════════════════════════════
+   시작
+   ════════════════════════════════════════════════ */
+function watchRound(){
+  if(unsubRound) unsubRound();
+  lastFinalId = undefined;
+  unsubRound = store.on(`rounds/${dayKey}`, v=>{
+    round = { picks: (v && v.picks) || {}, final: (v && v.final) || null };
+    if(mode==="final" && !animating && !(round.final && round.final.spinId!==lastFinalId && lastFinalId!==undefined)) refreshWheel();
+    onFinalChange(round.final);
+    render();
+  });
+}
+(async function boot(){
+  const cfg = window.FIREBASE_CONFIG || {};
+  if(cfg.apiKey && cfg.databaseURL){
+    try{ store = await makeFirebaseStore(cfg); }
+    catch(e){ store = makeLocalStore(); showBanner("Firebase에 연결하지 못해서 <b>로컬 모드</b>로 열었어요. firebase-config.js 값을 확인해 주세요."); }
+  } else {
+    store = makeLocalStore();
+    showBanner("지금은 <b>로컬 모드</b>예요. 이 브라우저 안에서만 저장돼요. 여럿이 같이 보려면 README대로 <code>firebase-config.js</code>를 채워 주세요.");
+  }
+  store.on("menus", v=>{
+    if(v && v.categories){
+      const arr = Array.isArray(v.categories) ? v.categories : Object.values(v.categories);
+      menus = arr.filter(c=>c && c.name).map(c=>({name:String(c.name), items: c.items ? (Array.isArray(c.items)?c.items:Object.values(c.items)).map(String) : []}));
+    } else if(v === null){
+      store.set("menus", {categories: DEFAULT_MENUS}).catch(()=>{}); // 처음 한 번 기본 메뉴 채우기
+    }
+    renderEditor(); refreshWheel(); render();
+  });
+  store.on("history", v=>{ history = v ? Object.values(v).filter(Boolean).sort((a,b)=>b.at-a.at) : []; renderHistory(); });
+  watchRound();
+  // 날짜가 바뀌면(자정) 새 라운드로 자동 전환
+  setInterval(()=>{ const k=todayKey(); if(k!==dayKey && !animating){ dayKey=k; mine={phase:"idle",cat:null}; watchRound(); } }, 60000);
+
+  let saved = null; try{ saved = localStorage.getItem("lunch-me"); }catch(e){}
+  if(saved && PEOPLE.some(p=>p.name===saved)) [...$("whoBtns").children].find(b=>b.textContent===saved).click();
+  if(document.fonts) document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>
